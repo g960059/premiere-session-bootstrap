@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Premiere Bootstrap Probe</title>
+    <style>
+      body {
+        margin: 16px;
+        font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #262626;
+        color: #f2f2f2;
+      }
+      button {
+        padding: 8px 12px;
+        margin-right: 8px;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #111;
+        padding: 12px;
+        border: 1px solid #555;
+        max-height: 220px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Premiere Bootstrap Probe</h1>
+    <p>Runs ExtendScript inside Premiere and writes a probe report to /tmp.</p>
+    <button id="runProbe">Run API Probe</button>
+    <button id="runSelectionProbe">Probe Selected Items</button>
+    <pre id="out">Ready.</pre>
+    <script src="main.js"></script>
+  </body>
+</html>
+

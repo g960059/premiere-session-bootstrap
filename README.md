@@ -7,16 +7,17 @@ This repository exists to answer one practical question:
 > If editing returns from DaVinci Resolve to Adobe Premiere Pro, which parts of
 > the current `davinci-session-bootstrap` workflow can still be automated?
 
-Current answer:
+Current answer after probing Premiere Pro 2026.2.2 on macOS:
 
 - Keep automation for ingest, take grouping, validation, still/contact-sheet
   review, and operator handoff.
-- Premiere can be automated for bins, importing media, and project/sequence
-  setup.
-- Sound-synced multicam source sequence creation and "use only the external
-  AIF audio as final audio" need direct Premiere API verification. Manual
-  Premiere UI supports the workflow, but public scripting APIs are not as clear
-  as Resolve's Python API for this exact task.
+- Premiere can be automated for metadata handoff, bins, importing media, and
+  ordinary project/sequence setup.
+- Adobe's current UXP type definitions expose ordinary sequence creation and
+  editing, but do not expose a public sound-synced multicam creation API.
+- Sound-synced multicam creation and "use only the external AIF audio as final
+  audio" should be treated as manual Premiere UI steps unless a future probe
+  finds a reliable private/QE route worth accepting.
 
 ## Initial Verdict
 
@@ -27,8 +28,8 @@ Current answer:
 | Create Premiere bin structure | ExtendScript or UXP | High |
 | Import grouped media | ExtendScript `importFiles` or UXP media import | High |
 | Create ordinary sequences | ExtendScript or UXP | Medium |
-| Create sound-synced multicam source sequence | Needs local Premiere verification | Low/Unknown |
-| Force final audio to external AIF only | Likely partly automatable after multicam exists | Medium/Unknown |
+| Create sound-synced multicam source sequence | Manual Premiere UI; public UXP API not found | Low |
+| Force final audio to external AIF only | Manual after multicam creation, or partial sequence cleanup if exposed later | Low/Medium |
 | Apply Lumetri presets per angle | Possible via presets/effects, needs verification | Medium |
 | Export YouTube SDR | Possible, but profile/preset-driven | Medium |
 
@@ -69,9 +70,8 @@ Generated output:
 
 ## Probe Scripts
 
-This machine currently does not have Adobe Premiere Pro installed under
-`/Applications`, so the repository includes probe scripts to run on a Premiere
-machine.
+Probe scripts are included because Premiere automation depends on what the
+installed host exposes at runtime.
 
 ### ExtendScript Probe
 
@@ -94,7 +94,8 @@ import/bin automation first, multicam construction later after API probing.
 ### UXP Probe
 
 `uxp/premiere-bootstrap-probe/` is a minimal UXP plugin skeleton for probing the
-newer Premiere Pro API surface.
+newer Premiere Pro API surface. Use Adobe's UXP Developer Tool or Premiere's
+developer-mode plugin loader to load it.
 
 ## Recommended Premiere Workflow If Returning From Resolve
 
@@ -102,7 +103,8 @@ newer Premiere Pro API surface.
    group `/incoming/` into `takes/`.
 2. Generate `premiere-manifest.json`.
 3. In Premiere, import each take into bins.
-4. For each take, create a multicam source sequence using audio sync.
+4. For each take, create a multicam source sequence using Premiere's UI audio
+   sync.
 5. Keep camera scratch audio only for sync; disable/mute it after sync.
 6. Use the external AIF/WAV as the final audio source.
 7. Edit with Premiere multicam tools.
@@ -111,9 +113,7 @@ newer Premiere Pro API surface.
 
 ## Current Open Questions
 
-- Can UXP create a multicam source sequence with audio sync directly?
-- Can ExtendScript access the same command without fragile UI scripting?
+- Can ExtendScript/QE access multicam creation without fragile UI scripting?
 - After multicam creation, can scripting programmatically switch the audio
   mapping to external AIF only?
 - Is a preset-driven Lumetri workflow good enough for this piano material?
-

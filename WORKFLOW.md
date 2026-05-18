@@ -65,8 +65,19 @@ For each take:
 5. After sync, mute/disable camera scratch audio.
 6. Keep the external AIF/WAV as the only final audio.
 
-This step is the main API uncertainty. Premiere's UI supports the workflow, but
-the repo still needs local Premiere API probing before claiming full automation.
+This is intentionally a manual Premiere UI step for now. Adobe's public UXP
+26.2 API exposes normal project, import, and sequence operations, but no public
+method for creating an audio-synced multicam source sequence. The repo should
+therefore automate the handoff up to this point and avoid pretending this part
+is reliably scriptable.
+
+Practical Premiere settings to check while creating the multicam source:
+
+- Synchronize Point: `Audio`
+- Audio: use camera audio for synchronization only
+- Final audible audio: external `audio.aif` or generated `audio-edit.wav`
+- Camera scratch audio: muted/disabled after sync
+- Result name: `MC_take-XX`
 
 ## 5. Editing
 
@@ -98,6 +109,11 @@ For this piano material, keep the same priorities:
 - Skin natural when visible.
 - Window highlights controlled.
 
+For this project, keep automated color conservative. The repo can prepare
+contact sheets and operator notes, but the actual piano/skin/window judgement
+should remain a human or visual-agent decision inside Premiere until there is a
+repeatable preset strategy.
+
 ## 7. Export
 
 Export YouTube SDR Rec.709:
@@ -109,4 +125,3 @@ Frame rate: 29.97
 Color: Rec.709 SDR
 Audio: external audio only
 ```
-
