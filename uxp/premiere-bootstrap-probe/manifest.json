@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 5,
+  "id": "com.g960059.premiere-bootstrap-probe",
+  "name": "Premiere Bootstrap Probe",
+  "version": "0.1.0",
+  "host": {
+    "app": "PPRO",
+    "minVersion": "25.0.0"
+  },
+  "main": "index.html",
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "probePanel",
+      "label": "Bootstrap Probe",
+      "minimumSize": {
+        "width": 360,
+        "height": 260
+      }
+    }
+  ]
+}
+
