@@ -38,21 +38,29 @@ Read:
 
 ```text
 <session-root>/reports/premiere-handoff.md
+<session-root>/reports/premiere-bootstrap-import.jsx
+<session-root>/reports/premiere-import-runbook.md
 ```
 
 ## 3. Premiere Project Setup
 
-In Premiere:
+Run the generated `premiere-bootstrap-import.jsx` inside Premiere through a CEP
+panel or ExtendScript debugging session.
 
-1. Create a project for the session.
-2. Create bins:
-   - `Piano Session`
-   - `Piano Session/Takes`
-   - `Piano Session/Takes/take-XX`
-3. Import each take's angle videos and external audio into the matching bin.
+The script handles:
 
-This should be scriptable. The repo includes `extendscript/import-session.jsx`
-as the first automation prototype.
+- Create/open the session `.prproj`.
+- Create bins:
+  - `Piano Session`
+  - `Piano Session/Takes`
+  - `Piano Session/Takes/take-XX`
+- Import each take's angle videos and final external audio into the matching bin.
+- Skip files already present in the take bin.
+- Save the project.
+- Write `reports/premiere-import-result.json`.
+
+After this step, Premiere should contain clean take bins. The editor should not
+need to browse the filesystem for camera or audio files.
 
 ## 4. Multicam Source Sequence Per Take
 

@@ -47,6 +47,14 @@ Generate a Premiere-facing manifest and handoff from a grouped session:
 python -m premiere_session_bootstrap premiere-manifest /path/to/session --json
 ```
 
+Optionally choose the `.prproj` path that the generated Premiere import script
+will create/open:
+
+```bash
+python -m premiere_session_bootstrap premiere-manifest /path/to/session \
+  --project-path /path/to/session/session-name.prproj
+```
+
 Expected input is the same grouped layout:
 
 ```text
@@ -66,6 +74,8 @@ Generated output:
 ```text
 <session-root>/reports/premiere-manifest.json
 <session-root>/reports/premiere-handoff.md
+<session-root>/reports/premiere-bootstrap-import.jsx
+<session-root>/reports/premiere-import-runbook.md
 ```
 
 ## Probe Scripts
@@ -88,8 +98,14 @@ then inspect:
 ### ExtendScript Import Prototype
 
 `extendscript/import-session.jsx` imports media from a generated
-`premiere-manifest.json` into take bins. It is intentionally conservative:
-import/bin automation first, multicam construction later after API probing.
+`premiere-manifest.json` into take bins. The generated
+`reports/premiere-bootstrap-import.jsx` is the preferred run target because it
+already embeds the absolute manifest path.
+
+The script creates/opens the project path from the manifest, creates bins,
+imports only missing files, saves the project, and writes
+`reports/premiere-import-result.json`. It intentionally stops before multicam
+creation.
 
 ### UXP Probe
 

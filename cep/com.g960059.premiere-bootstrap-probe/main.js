@@ -11,9 +11,13 @@
     const extensionRoot = window.__adobe_cep__.getSystemPath("extension").replace(/\\/g, "/");
     const scriptPath = `${extensionRoot}/${relativePath}`;
     out.textContent = `Running ${scriptPath} ...`;
-    const result = await evalScript(`$.evalFile("${scriptPath}")`);
+    const result = await evalScript(`$.evalFile(${JSON.stringify(scriptPath)})`);
     out.textContent = String(result);
   }
+
+  document.getElementById("runImport").addEventListener("click", () => {
+    runFile("jsx/import-session.jsx");
+  });
 
   document.getElementById("runProbe").addEventListener("click", () => {
     runFile("jsx/probe-premiere-api.jsx");
@@ -23,4 +27,3 @@
     runFile("jsx/probe-selection.jsx");
   });
 })();
-

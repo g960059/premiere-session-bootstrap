@@ -3,7 +3,7 @@
   Version="7.0"
   ExtensionBundleId="com.g960059.premiere-bootstrap-probe"
   ExtensionBundleVersion="0.1.0"
-  ExtensionBundleName="Premiere Bootstrap Probe">
+  ExtensionBundleName="Premiere Bootstrap">
   <ExtensionList>
     <Extension Id="com.g960059.premiere-bootstrap-probe" Version="0.1.0" />
   </ExtensionList>
@@ -33,7 +33,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Premiere Bootstrap Probe</Menu>
+          <Menu>Premiere Bootstrap</Menu>
           <Geometry>
             <Size>
               <Height>320</Height>

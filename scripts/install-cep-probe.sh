@@ -21,5 +21,4 @@ echo "Installed CEP probe:"
 echo "  $target_dir -> $source_dir"
 echo
 echo "Restart Premiere Pro, then open:"
-echo "  Window > Extensions > Premiere Bootstrap Probe"
-
+echo "  Window > Extensions > Premiere Bootstrap"
