@@ -28,7 +28,16 @@ Premiere. The desired grouped result is:
 
 ## 2. Premiere Manifest
 
-Generate a Premiere handoff:
+For the normal one-shot workflow, run:
+
+```bash
+python -m premiere_session_bootstrap bootstrap-session "<session-root>" --json
+```
+
+This groups `<session-root>/incoming/` if needed and generates the Premiere
+handoff.
+
+If the session is already grouped, generate only the Premiere handoff:
 
 ```bash
 python -m premiere_session_bootstrap premiere-manifest "<session-root>" --json

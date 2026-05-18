@@ -7,6 +7,14 @@ from typing import Any
 
 import yaml
 
+from premiere_session_bootstrap.autogroup import (
+    apply_auto_group,
+    auto_group_plan_to_dict,
+    plan_auto_group,
+    write_auto_group_plan_reports,
+)
+from premiere_session_bootstrap.config import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, initialize_session
+
 
 SCHEMA = "premiere-session-bootstrap.manifest.v2"
 
@@ -14,6 +22,35 @@ SCHEMA = "premiere-session-bootstrap.manifest.v2"
 def _load_yaml(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def _emit(payload: dict[str, Any], *, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    status = payload.get("status", "PASS")
+    summary = payload.get("summary", "")
+    print(f"{status}: {summary}".rstrip())
+
+
+def _find_incoming_dir(session_root: Path, incoming_dir: str | None) -> Path | None:
+    if incoming_dir:
+        path = (session_root / incoming_dir).resolve()
+        return path if path.is_dir() else None
+    path = (session_root / "incoming").resolve()
+    return path if path.is_dir() else None
+
+
+def _incoming_media_count(session_root: Path, incoming_dir: str | None) -> int:
+    incoming = _find_incoming_dir(session_root, incoming_dir)
+    if incoming is None:
+        return 0
+    media_extensions = AUDIO_EXTENSIONS | VIDEO_EXTENSIONS
+    return sum(
+        1
+        for path in incoming.iterdir()
+        if path.is_file() and not path.name.startswith(".") and path.suffix.lower() in media_extensions
+    )
 
 
 def _session_take_rows(session_root: Path, session: dict[str, Any]) -> list[dict[str, Any]]:
@@ -383,6 +420,51 @@ def write_premiere_outputs(session_root: Path, project_path: Path | None = None)
     return payload
 
 
+def command_group_session(args: argparse.Namespace) -> int:
+    session_root = Path(args.session_root).resolve()
+    payload, status_code = ensure_grouped(session_root, incoming_dir=args.incoming_dir, dry_run=args.dry_run)
+    _emit(payload, as_json=args.json)
+    return status_code
+
+
+def ensure_grouped(session_root: Path, *, incoming_dir: str | None = None, dry_run: bool = False) -> tuple[dict[str, Any], int]:
+    media_count = _incoming_media_count(session_root, incoming_dir)
+
+    if media_count == 0:
+        session = initialize_session(session_root)
+        payload = {
+            "status": "PASS",
+            "summary": f"session already grouped; {len(session.takes)} takes available",
+            "session_config": str(session.session_path),
+            "take_count": len(session.takes),
+        }
+        return payload, 0
+
+    plan = plan_auto_group(session_root, incoming_dir=incoming_dir)
+    write_auto_group_plan_reports(session_root, plan)
+
+    if dry_run:
+        payload = auto_group_plan_to_dict(plan)
+        payload["summary"] = f"planned {len(plan.takes)} takes from {plan.incoming_dir}"
+        return payload, 0 if plan.status == "PASS" else 1
+
+    if plan.status != "PASS":
+        payload = auto_group_plan_to_dict(plan)
+        payload["summary"] = "grouping plan is not PASS; refusing to apply"
+        return payload, 1
+
+    apply_result = apply_auto_group(session_root, plan=plan)
+    session = initialize_session(session_root)
+    payload = {
+        "status": apply_result.status,
+        "summary": f"applied {len(apply_result.takes_created)} takes",
+        "session_config": str(session.session_path),
+        "takes_created": apply_result.takes_created,
+        "excluded_created": apply_result.excluded_created,
+    }
+    return payload, 0
+
+
 def command_premiere_manifest(args: argparse.Namespace) -> int:
     session_root = Path(args.session_root).resolve()
     project_path = Path(args.project_path).resolve() if args.project_path else None
@@ -398,14 +480,50 @@ def command_premiere_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_bootstrap_session(args: argparse.Namespace) -> int:
+    session_root = Path(args.session_root).resolve()
+    group_payload, group_status = ensure_grouped(session_root, incoming_dir=args.incoming_dir)
+    if group_status != 0:
+        _emit(group_payload, as_json=args.json)
+        return group_status
+    payload = write_premiere_outputs(
+        session_root,
+        project_path=Path(args.project_path).resolve() if args.project_path else None,
+    )
+    payload["grouping"] = group_payload
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(f"PASS: {payload['summary']}")
+        print(f"Manifest: {payload['manifest_path']}")
+        print(f"Import JSX: {payload['import_jsx_path']}")
+        print(f"Runbook: {payload['runbook_path']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="premiere-session-bootstrap")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    group = subparsers.add_parser("group-session", help="group incoming media into takes")
+    group.add_argument("session_root")
+    group.add_argument("--incoming-dir")
+    group.add_argument("--dry-run", action="store_true")
+    group.add_argument("--json", action="store_true")
+    group.set_defaults(func=command_group_session)
+
     manifest = subparsers.add_parser("premiere-manifest", help="write Premiere manifest and handoff")
     manifest.add_argument("session_root")
     manifest.add_argument("--project-path", help="Premiere .prproj path to create/open from the generated import script")
     manifest.add_argument("--json", action="store_true")
     manifest.set_defaults(func=command_premiere_manifest)
+
+    bootstrap = subparsers.add_parser("bootstrap-session", help="group incoming media and write Premiere import handoff")
+    bootstrap.add_argument("session_root")
+    bootstrap.add_argument("--incoming-dir")
+    bootstrap.add_argument("--project-path", help="Premiere .prproj path to create/open from the generated import script")
+    bootstrap.add_argument("--json", action="store_true")
+    bootstrap.set_defaults(func=command_bootstrap_session)
     return parser
 
 

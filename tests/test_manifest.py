@@ -6,7 +6,7 @@ import unittest
 
 import yaml
 
-from premiere_session_bootstrap.cli import build_premiere_manifest, write_premiere_outputs
+from premiere_session_bootstrap.cli import build_premiere_manifest, ensure_grouped, write_premiere_outputs
 
 
 class ManifestTests(unittest.TestCase):
@@ -77,6 +77,36 @@ class ManifestTests(unittest.TestCase):
             self.assertTrue(runbook_path.exists())
             self.assertIn(str(manifest_path), import_jsx_path.read_text(encoding="utf-8"))
             self.assertEqual(Path(payload["premiere_project_path"]).name, "custom.prproj")
+
+    def test_ensure_grouped_accepts_already_grouped_session_without_incoming(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            take_dir = root / "takes" / "take-01"
+            take_dir.mkdir(parents=True)
+            (take_dir / "angle-a.mp4").write_bytes(b"")
+            (take_dir / "audio.aif").write_bytes(b"")
+            session = {
+                "session_id": "session-test",
+                "session_title": "session-test",
+                "date": "2026-05-18",
+                "session_root": str(root),
+                "takes": [{"id": "take-01", "take": "takes/take-01/take.yaml"}],
+            }
+            take = {
+                "session": "session-test",
+                "date": "2026-05-18",
+                "source_dir": str(take_dir),
+                "master_audio": "audio.aif",
+                "camera_files": [{"label": "angle-a", "file": "angle-a.mp4"}],
+            }
+            (root / "session.yaml").write_text(yaml.safe_dump(session), encoding="utf-8")
+            (take_dir / "take.yaml").write_text(yaml.safe_dump(take), encoding="utf-8")
+
+            payload, status_code = ensure_grouped(root)
+
+            self.assertEqual(status_code, 0)
+            self.assertEqual(payload["status"], "PASS")
+            self.assertEqual(payload["take_count"], 1)
 
 
 if __name__ == "__main__":

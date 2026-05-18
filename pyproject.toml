@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Premiere Pro session bootstrap experiments for piano multicam workflows"
 requires-python = ">=3.11"
 dependencies = [
+  "numpy>=1.26,<3",
+  "opencv-python-headless>=4.10,<5",
   "pyyaml>=6.0.2",
+  "scipy>=1.14,<2",
 ]
 
 [project.scripts]
@@ -16,4 +19,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/premiere_session_bootstrap"]
-

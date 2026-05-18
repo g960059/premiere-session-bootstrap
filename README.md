@@ -41,6 +41,21 @@ two directions can evolve independently.
 
 ## CLI
 
+One-shot Premiere bootstrap from `/incoming/`:
+
+```bash
+python -m premiere_session_bootstrap bootstrap-session /path/to/session --json
+```
+
+This runs grouping when incoming media exists, then writes the Premiere handoff
+and import script.
+
+Group only:
+
+```bash
+python -m premiere_session_bootstrap group-session /path/to/session --json
+```
+
 Generate a Premiere-facing manifest and handoff from a grouped session:
 
 ```bash
@@ -115,8 +130,8 @@ developer-mode plugin loader to load it.
 
 ## Recommended Premiere Workflow If Returning From Resolve
 
-1. Use `davinci-session-bootstrap` or this repo's future common ingest path to
-   group `/incoming/` into `takes/`.
+1. Use this repo's `bootstrap-session` to group `/incoming/` into `takes/` and
+   generate Premiere handoff files.
 2. Generate `premiere-manifest.json`.
 3. In Premiere, import each take into bins.
 4. For each take, create a multicam source sequence using Premiere's UI audio
@@ -133,3 +148,15 @@ developer-mode plugin loader to load it.
 - After multicam creation, can scripting programmatically switch the audio
   mapping to external AIF only?
 - Is a preset-driven Lumetri workflow good enough for this piano material?
+
+## Codex Skill
+
+This repo is also a self-contained Codex skill. Register it with:
+
+```bash
+ln -s /path/to/premiere-session-bootstrap/skills/premiere-session-bootstrap \
+  ~/.codex/skills/premiere-session-bootstrap
+```
+
+Then ask Codex to use `premiere-session-bootstrap` for the Premiere-first piano
+multicam workflow.

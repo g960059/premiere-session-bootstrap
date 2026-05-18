@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ ! -x "$DIR/.venv/bin/premiere-session-bootstrap" ]]; then
+  echo "error: $DIR/.venv/bin/premiere-session-bootstrap not found. Run scripts/install.sh first." >&2
+  exit 1
+fi
+exec "$DIR/.venv/bin/premiere-session-bootstrap" "$@"
