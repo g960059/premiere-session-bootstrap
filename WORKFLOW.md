@@ -53,8 +53,17 @@ Read:
 
 ## 3. Premiere Project Setup
 
-Run the generated `premiere-bootstrap-import.jsx` inside Premiere through a CEP
-panel or ExtendScript debugging session.
+Prefer the CLI runner:
+
+```bash
+python -m premiere_session_bootstrap run-premiere-import "<session-root>" --json
+```
+
+The runner asks Premiere Pro to execute the generated
+`premiere-bootstrap-import.jsx`, then waits for
+`reports/premiere-import-result.json`. If that runner fails, run the generated
+JSX manually inside Premiere through a CEP panel or ExtendScript debugging
+session.
 
 The script handles:
 

@@ -50,6 +50,14 @@ python -m premiere_session_bootstrap bootstrap-session /path/to/session --json
 This runs grouping when incoming media exists, then writes the Premiere handoff
 and import script.
 
+Run the generated import script in Premiere Pro and verify the result:
+
+```bash
+python -m premiere_session_bootstrap run-premiere-import /path/to/session --json
+```
+
+Success requires `reports/premiere-import-result.json` with `status: PASS`.
+
 Group only:
 
 ```bash
@@ -121,6 +129,9 @@ The script creates/opens the project path from the manifest, creates bins,
 imports only missing files, saves the project, and writes
 `reports/premiere-import-result.json`. It intentionally stops before multicam
 creation.
+
+`run-premiere-import` attempts to execute that JSX through Premiere's command
+line runner and treats the result JSON as the only success signal.
 
 ### UXP Probe
 

@@ -17,7 +17,9 @@ Default behavior stops at a Premiere-ready handoff:
 1. **group-session**: `<session-root>/incoming/` media -> `takes/take-XX/`.
 2. **premiere-manifest**: write Premiere manifest, handoff, import JSX, and
    runbook.
-3. **Premiere manual step**: create one audio-synced multicam source sequence
+3. **run-premiere-import**: ask Premiere Pro to run the generated import JSX,
+   then verify `reports/premiere-import-result.json`.
+4. **Premiere manual step**: create one audio-synced multicam source sequence
    per take in Premiere's UI.
 
 ## Prerequisites
@@ -43,6 +45,7 @@ For a normal session, run:
 
 ```bash
 ${CLAUDE_SKILL_DIR}/scripts/psb bootstrap-session "<session-root>" --json
+${CLAUDE_SKILL_DIR}/scripts/psb run-premiere-import "<session-root>" --json
 ```
 
 This groups media if `incoming/` still contains source files, then writes:
@@ -55,6 +58,8 @@ This groups media if `incoming/` still contains source files, then writes:
 - `<session-root>/reports/premiere-handoff.md`
 - `<session-root>/reports/premiere-bootstrap-import.jsx`
 - `<session-root>/reports/premiere-import-runbook.md`
+- `<session-root>/reports/premiere-import-result.json` after
+  `run-premiere-import` succeeds.
 
 Use `--project-path` when the Premiere project should be created somewhere
 other than `<session-root>/<session-id>.prproj`.
@@ -67,6 +72,7 @@ When debugging grouping, split the workflow:
 ${CLAUDE_SKILL_DIR}/scripts/psb group-session "<session-root>" --dry-run --json
 ${CLAUDE_SKILL_DIR}/scripts/psb group-session "<session-root>" --json
 ${CLAUDE_SKILL_DIR}/scripts/psb premiere-manifest "<session-root>" --json
+${CLAUDE_SKILL_DIR}/scripts/psb run-premiere-import "<session-root>" --json
 ```
 
 - Use only `<session-root>/incoming/` by default.
@@ -76,10 +82,10 @@ ${CLAUDE_SKILL_DIR}/scripts/psb premiere-manifest "<session-root>" --json
 
 ## Premiere Import
 
-After `premiere-manifest`, open Premiere Pro and run:
+After `premiere-manifest`, prefer the CLI runner:
 
-```text
-<session-root>/reports/premiere-bootstrap-import.jsx
+```bash
+${CLAUDE_SKILL_DIR}/scripts/psb run-premiere-import "<session-root>" --json
 ```
 
 The script creates/opens the `.prproj`, creates take bins, imports angle videos
@@ -88,6 +94,12 @@ and the final external audio, saves the project, and writes:
 ```text
 <session-root>/reports/premiere-import-result.json
 ```
+
+Treat the runner as successful only when that result JSON exists and reports
+`status: PASS`. If the runner returns `FAIL`, surface the failure, the stderr
+log path, and tell the operator to run
+`<session-root>/reports/premiere-bootstrap-import.jsx` manually from a Premiere
+ExtendScript environment.
 
 If the CEP panel is available, `Window > Extensions > Premiere Bootstrap` can
 run the same import flow through `Import Session Manifest`.
@@ -115,8 +127,9 @@ Premiere bootstrap complete.
   Takes: <N>
   Manifest: <session-root>/reports/premiere-manifest.json
   Import JSX: <session-root>/reports/premiere-bootstrap-import.jsx
+  Import result: <session-root>/reports/premiere-import-result.json
   Runbook: <session-root>/reports/premiere-import-runbook.md
 
-Next step: open Premiere, run the import JSX, then create one audio-synced
-multicam source sequence per take.
+Next step: in Premiere, create one audio-synced multicam source sequence per
+take.
 ```

@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
+import time
 from typing import Any
 
 import yaml
@@ -327,8 +329,10 @@ var MANIFEST_PATH = {manifest_literal};
     var manifest = readJson(MANIFEST_PATH);
     var report = {{
         schema: "premiere-session-bootstrap.import-result.v1",
+        status: "PASS",
         manifest_path: MANIFEST_PATH,
         project_path: manifest.premiere_project_path,
+        completed_at: null,
         project_action: null,
         take_count: manifest.takes.length,
         imported_file_count: 0,
@@ -363,6 +367,7 @@ var MANIFEST_PATH = {manifest_literal};
     }}
 
     app.project.save();
+    report.completed_at = new Date().toISOString();
     var reportPath = dirname(MANIFEST_PATH) + "/premiere-import-result.json";
     writeJson(reportPath, report);
     alert("Premiere bootstrap complete. Imported " + report.imported_file_count + " new file(s); skipped " + report.skipped_existing_count + " existing file(s).\\n\\nNext: create one audio-synced multicam source sequence per take.");
@@ -418,6 +423,99 @@ def write_premiere_outputs(session_root: Path, project_path: Path | None = None)
     import_jsx_path.write_text(render_import_jsx(manifest_path), encoding="utf-8")
     runbook_path.write_text(render_import_runbook(payload, import_jsx_path), encoding="utf-8")
     return payload
+
+
+def _default_premiere_app_path() -> Path:
+    return Path("/Applications/Adobe Premiere Pro 2026/Adobe Premiere Pro 2026.app/Contents/MacOS/Adobe Premiere Pro 2026")
+
+
+def run_premiere_import(
+    session_root: Path,
+    *,
+    app_path: Path | None = None,
+    jsx_path: Path | None = None,
+    timeout_seconds: int = 300,
+) -> dict[str, Any]:
+    session_root = session_root.resolve()
+    reports_dir = session_root / "reports"
+    script_path = (jsx_path or reports_dir / "premiere-bootstrap-import.jsx").resolve()
+    result_path = reports_dir / "premiere-import-result.json"
+    stdout_path = reports_dir / "premiere-import-runner.stdout.log"
+    stderr_path = reports_dir / "premiere-import-runner.stderr.log"
+    resolved_app_path = (app_path or _default_premiere_app_path()).resolve()
+
+    if not script_path.is_file():
+        return {
+            "status": "FAIL",
+            "summary": f"Premiere import JSX not found: {script_path}",
+            "script_path": str(script_path),
+            "result_path": str(result_path),
+        }
+    if not resolved_app_path.is_file():
+        return {
+            "status": "FAIL",
+            "summary": f"Premiere executable not found: {resolved_app_path}",
+            "app_path": str(resolved_app_path),
+            "script_path": str(script_path),
+            "result_path": str(result_path),
+        }
+
+    start_time = time.time()
+    command = [str(resolved_app_path), "--console", "es.processFile", str(script_path)]
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+        process = subprocess.Popen(command, stdout=stdout, stderr=stderr)
+
+    deadline = start_time + timeout_seconds
+    last_error: str | None = None
+    while time.time() < deadline:
+        if result_path.exists() and result_path.stat().st_mtime >= start_time:
+            try:
+                result = json.loads(result_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                last_error = f"result JSON is invalid: {exc}"
+            else:
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+                result["runner"] = {
+                    "status": "PASS",
+                    "command": command,
+                    "stdout_log": str(stdout_path),
+                    "stderr_log": str(stderr_path),
+                    "timeout_seconds": timeout_seconds,
+                }
+                return result
+
+        return_code = process.poll()
+        if return_code is not None and return_code != 0:
+            break
+        time.sleep(1)
+
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+    stderr_tail = ""
+    if stderr_path.exists():
+        stderr_tail = "\n".join(stderr_path.read_text(encoding="utf-8", errors="replace").splitlines()[-20:])
+    summary = last_error or "Premiere did not produce premiere-import-result.json before timeout"
+    return {
+        "status": "FAIL",
+        "summary": summary,
+        "app_path": str(resolved_app_path),
+        "script_path": str(script_path),
+        "result_path": str(result_path),
+        "command": command,
+        "return_code": process.poll(),
+        "stdout_log": str(stdout_path),
+        "stderr_log": str(stderr_path),
+        "stderr_tail": stderr_tail,
+    }
 
 
 def command_group_session(args: argparse.Namespace) -> int:
@@ -501,6 +599,30 @@ def command_bootstrap_session(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_run_premiere_import(args: argparse.Namespace) -> int:
+    session_root = Path(args.session_root).resolve()
+    if not (session_root / "reports" / "premiere-bootstrap-import.jsx").is_file():
+        write_premiere_outputs(
+            session_root,
+            project_path=Path(args.project_path).resolve() if args.project_path else None,
+        )
+    payload = run_premiere_import(
+        session_root,
+        app_path=Path(args.app_path).resolve() if args.app_path else None,
+        jsx_path=Path(args.jsx_path).resolve() if args.jsx_path else None,
+        timeout_seconds=args.timeout,
+    )
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(f"{payload.get('status', 'FAIL')}: {payload.get('summary', 'Premiere import runner finished')}")
+        if payload.get("result_path"):
+            print(f"Result: {payload['result_path']}")
+        if payload.get("stderr_log"):
+            print(f"stderr log: {payload['stderr_log']}")
+    return 0 if payload.get("status") == "PASS" else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="premiere-session-bootstrap")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -524,6 +646,15 @@ def build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument("--project-path", help="Premiere .prproj path to create/open from the generated import script")
     bootstrap.add_argument("--json", action="store_true")
     bootstrap.set_defaults(func=command_bootstrap_session)
+
+    run_import = subparsers.add_parser("run-premiere-import", help="run generated Premiere import JSX and verify import result")
+    run_import.add_argument("session_root")
+    run_import.add_argument("--project-path", help="Generate handoff first with this .prproj path if import JSX is missing")
+    run_import.add_argument("--jsx-path", help="Path to a specific Premiere import JSX")
+    run_import.add_argument("--app-path", help="Path to the Premiere Pro executable")
+    run_import.add_argument("--timeout", type=int, default=300)
+    run_import.add_argument("--json", action="store_true")
+    run_import.set_defaults(func=command_run_premiere_import)
     return parser
 
 

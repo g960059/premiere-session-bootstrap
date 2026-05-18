@@ -135,8 +135,10 @@ var MANIFEST_PATH = "";
     var manifest = readJson(manifestPath);
     var report = {
         schema: "premiere-session-bootstrap.import-result.v1",
+        status: "PASS",
         manifest_path: manifestPath,
         project_path: manifest.premiere_project_path,
+        completed_at: null,
         project_action: null,
         take_count: manifest.takes.length,
         imported_file_count: 0,
@@ -171,6 +173,7 @@ var MANIFEST_PATH = "";
     }
 
     app.project.save();
+    report.completed_at = new Date().toISOString();
     writeJson(dirname(manifestPath) + "/premiere-import-result.json", report);
     alert("Premiere bootstrap complete. Imported " + report.imported_file_count + " new file(s); skipped " + report.skipped_existing_count + " existing file(s).");
 })();
